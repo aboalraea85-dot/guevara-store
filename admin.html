@@ -4,152 +4,177 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>لوحة التحكم | Guevara Admin</title>
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
   <!-- مكتبة إنشاء ملفات Excel -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; }
-    body { background: #0f172a; color: #fff; padding: 20px; }
-    .container { max-width: 600px; margin: 0 auto; background: #1e293b; padding: 20px; border-radius: 12px; }
-    h2 { margin-bottom: 20px; text-align: center; color: #10b981; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; }
+    body { background: #0f172a; color: #f8fafc; padding: 20px; display: flex; justify-content: center; }
+    .container { max-width: 600px; width: 100%; background: #1e293b; padding: 25px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+    h2 { margin-bottom: 20px; text-align: center; color: #38bdf8; }
     .form-group { margin-bottom: 15px; }
-    label { display: block; margin-bottom: 5px; font-size: 0.9rem; color: #94a3b8; }
-    input, textarea { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #fff; }
-    .btn { width: 100%; padding: 12px; background: #4f46e5; border: none; border-radius: 8px; color: #fff; font-weight: 700; cursor: pointer; margin-top: 10px; }
-    .btn:hover { background: #4338ca; }
+    label { display: block; margin-bottom: 5px; color: #94a3b8; font-size: 0.9em; }
+    input, textarea, select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 1em; outline: none; }
+    input:focus, textarea:focus, select:focus { border-color: #38bdf8; }
+    .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; background: #0284c7; color: white; font-weight: bold; font-size: 1em; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+    .btn:hover { background: #0369a1; }
     .btn-excel { background: #10b981; }
     .btn-excel:hover { background: #059669; }
     .divider { height: 1px; background: #334155; margin: 25px 0; }
+    .product-item { display: flex; align-items: center; justify-content: space-between; background: #0f172a; padding: 10px 15px; border-radius: 8px; margin-bottom: 10px; }
+    .product-info { display: flex; align-items: center; gap: 12px; }
+    .product-info img { width: 45px; height: 45px; border-radius: 6px; object-fit: cover; }
+    .category-badge { background: #0284c7; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 0.75em; display: inline-block; margin-top: 3px; }
+    .btn-delete { background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+    .btn-delete:hover { background: #dc2626; }
   </style>
 </head>
 <body>
 
   <div class="container">
-    <h2>إضافة منتج جديد للمخزون</h2>
-    <form id="add-product-form">
+    <h2>إدارة منتجات المتجر</h2>
+
+    <form id="productForm">
       <div class="form-group">
         <label>اسم المنتج</label>
-        <input type="text" id="title" required placeholder="مثال: شيكولاتة ماكس مان">
+        <input type="text" id="pTitle" required placeholder="مثال: كريم تفتيح">
       </div>
-
       <div class="form-group">
-        <label>السعر (جنيه)</label>
-        <input type="number" id="price" required placeholder="250">
+        <label>القسم</label>
+        <select id="pCategory" required>
+          <option value="منتجات حريمي">منتجات حريمي</option>
+          <option value="منتجات رجالي">منتجات رجالي</option>
+          <option value="أخرى">أخرى</option>
+        </select>
       </div>
-
       <div class="form-group">
-        <label>الكمية المتاحة بالمخزون</label>
-        <input type="number" id="stock" min="1" value="10" required>
+        <label>السعر (ج.م)</label>
+        <input type="number" id="pPrice" required placeholder="مثال: 250">
       </div>
-
       <div class="form-group">
-        <label>تفاصيل/وصف المنتج</label>
-        <textarea id="desc" rows="3" placeholder="أدخل تفاصيل الوصف أو الألوان أو المقاسات..."></textarea>
+        <label>رابط الصورة</label>
+        <input type="url" id="pImg" required placeholder="https://example.com/image.jpg">
       </div>
-
       <div class="form-group">
-        <label>صورة المنتج</label>
-        <input type="file" id="image-file" accept="image/*" required>
+        <label>وصف المنتج</label>
+        <textarea id="pDesc" rows="3" placeholder="اكتب تفاصيل المنتج هنا..."></textarea>
       </div>
-
-      <button type="submit" class="btn">حفظ وإضافة للمتجر</button>
+      <button type="submit" class="btn">إضافة المنتج للمتجر</button>
     </form>
 
     <div class="divider"></div>
 
-    <h2>إدارة الطلبات والفواتير</h2>
-    <p style="font-size:0.85rem; color:#94a3b8; text-align:center; margin-bottom:15px;">
-      اضغط لتنزيل ملف Excel بالطلبات وفتح محادثة الواتساب فوراً.
-    </p>
-    <button class="btn btn-excel" onclick="exportOrdersToExcelAndWhatsApp()">📊 تصدير الفواتير إلى Excel والواتساب</button>
+    <h2>النسخ الاحتياطي وإدارة الطلبات</h2>
+    <button class="btn btn-excel" onclick="exportToExcelAndWhatsApp()">تحميل الطلبات وإرسالها عبر الواتساب 📊📲</button>
+
+    <div class="divider"></div>
+
+    <h2>المنتجات الحالية</h2>
+    <div id="productList"></div>
   </div>
 
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  <script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getDatabase, ref, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
     const firebaseConfig = {
-      databaseURL: "https://guevarastore-default-rtdb.firebaseio.com"
+      databaseURL: "https://guevara-store-default-rtdb.firebaseio.com"
     };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const productForm = document.getElementById('productForm');
+    const productList = document.getElementById('productList');
 
     // إضافة منتج جديد
-    document.getElementById('add-product-form').addEventListener('submit', (e) => {
+    productForm.addEventListener('submit', (e) => {
       e.preventDefault();
-
-      const file = document.getElementById('image-file').files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function(evt) {
-        const productData = {
-          title: document.getElementById('title').value,
-          price: parseFloat(document.getElementById('price').value),
-          stock: parseInt(document.getElementById('stock').value),
-          desc: document.getElementById('desc').value,
-          image: evt.target.result
-        };
-
-        db.ref('products').push(productData).then(() => {
-          alert('تمت إضافة المنتج والمخزون بنجاح!');
-          document.getElementById('add-product-form').reset();
-        });
+      const newProduct = {
+        title: document.getElementById('pTitle').value,
+        category: document.getElementById('pCategory').value,
+        price: document.getElementById('pPrice').value,
+        image: document.getElementById('pImg').value,
+        description: document.getElementById('pDesc').value
       };
-      reader.readAsDataURL(file);
+
+      push(ref(db, 'products'), newProduct).then(() => {
+        alert('تمت إضافة المنتج بنجاح! 🎉');
+        productForm.reset();
+      });
     });
 
-    // استخراج الفواتير إلى Excel وفتح الواتساب
-    function exportOrdersToExcelAndWhatsApp() {
-      // ضع رقم هاتفك مع كود الدولة هنا (مثلاً رقم مصر: 201XXXXXXXXX)
-      const myPhoneNumber = "201501008175"; 
+    // عرض المنتجات
+    onValue(ref(db, 'products'), (snapshot) => {
+      productList.innerHTML = '';
+      const data = snapshot.val();
+      if(data) {
+        Object.keys(data).forEach(key => {
+          const item = data[key];
+          const div = document.createElement('div');
+          div.className = 'product-item';
+          div.innerHTML = `
+            <div class="product-info">
+              <img src="${item.image}" alt="${item.title}">
+              <div>
+                <strong>${item.title}</strong> - ${item.price} ج.م
+                <br>
+                <span class="category-badge">${item.category || 'عام'}</span>
+              </div>
+            </div>
+            <button class="btn-delete" onclick="deleteProduct('${key}')">حذف</button>
+          `;
+          productList.appendChild(div);
+        });
+      } else {
+        productList.innerHTML = '<p style="text-align:center; color:#64748b;">لا توجد منتجات حالياً.</p>';
+      }
+    });
 
-      db.ref('orders').once('value').then((snapshot) => {
-        const data = snapshot.val();
-        if (!data) {
-          alert('لا توجد طلبات أو فواتير حتى الآن!');
+    window.deleteProduct = function(id) {
+      if(confirm('هل أنت تأكد من حذف هذا المنتج؟')) {
+        remove(ref(db, 'products/' + id));
+      }
+    };
+
+    // تصدير الطلبات إلى Excel وفتح الواتساب
+    window.exportToExcelAndWhatsApp = function() {
+      onValue(ref(db, 'orders'), (snapshot) => {
+        const orders = snapshot.val();
+        if (!orders) {
+          alert('لا توجد طلبات لتصديرها!');
           return;
         }
 
-        const excelRows = [];
-        let totalSales = 0;
-
-        Object.keys(data).forEach((id, index) => {
-          const order = data[id];
-          totalSales += (order.totalCost || 0);
-
-          excelRows.push({
-            "م": index + 1,
-            "تاريخ الطلب": order.timestamp ? new Date(order.timestamp).toLocaleString('ar-EG') : '',
-            "اسم العميل": order.customerName || '',
-            "رقم الهاتف": order.phone || '',
-            "العنوان": order.address || '',
-            "المنتج": order.productTitle || '',
-            "الكمية": order.quantity || 1,
-            "إجمالي الفاتورة (ج.م)": order.totalCost || 0
+        const dataArray = [];
+        Object.keys(orders).forEach(key => {
+          const order = orders[key];
+          dataArray.push({
+            "اسم العميل": order.customerName,
+            "رقم الهاتف": order.phone,
+            "العنوان": order.address,
+            "المنتج": order.productTitle,
+            "السعر": order.productPrice + " ج.م",
+            "التاريخ": order.date || "غير محدد"
           });
         });
 
-        // 1. إنشاء وتحميل ملف Excel
-        const worksheet = XLSX.utils.json_to_sheet(excelRows);
+        // 1. تنزيل ملف Excel على الجهاز
+        const worksheet = XLSX.utils.json_to_sheet(dataArray);
         const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "الطلبات والفواتير");
-        
-        // حفظ الملف باسم orders.xlsx
-        XLSX.writeFile(workbook, "فواتير_متجر_جيفارة.xlsx");
+        XLSX.utils.book_append_sheet(workbook, worksheet, "الطلبات");
+        XLSX.writeFile(workbook, "طلبات_المتجر.xlsx");
 
-        // 2. تحضير الرسالة وفتح الواتساب
-        const message = `تقرير الفواتير والطلبات - متجر جيفارة 🛒%0A` +
-                        `إجمالي عدد الطلبات: ${excelRows.length}%0A` +
-                        `إجمالي المبيعات: ${totalSales} ج.م%0A` +
-                        `تم تحميل ملف Excel التفصيلي على الهاتف.`;
-
-        const waUrl = `https://wa.me/${myPhoneNumber}?text=${message}`;
+        // 2. توجيه المالك إلى الواتساب مع رسالة توضيحية
+        const whatsappNumber = "201501008175";
+        const message = encodeURIComponent("مرحباً، تم تحميل ملف طلبات المتجر الجديد بنجاح 📊. يرجى إرفاق الملف المحمل من الجهاز إرساله هنا.");
         
         setTimeout(() => {
-          window.open(waUrl, '_blank');
+          window.open(`https://wa.me/${whatsappNumber}?text=${message}`, '_blank');
         }, 1000);
-      });
-    }
+
+      }, { onlyOnce: true });
+    };
   </script>
 </body>
 </html>
