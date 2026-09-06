@@ -104,8 +104,8 @@
       }
     });
 
-    function compressAndConvertImage(file) {
-      return new Promise((resolve, reject) => {
+    function processImage(file) {
+      return new Promise((resolve) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
         reader.onload = (e) => {
@@ -113,34 +113,30 @@
           img.src = e.target.result;
           img.onload = () => {
             const canvas = document.createElement('canvas');
-            const maxDimension = 300;
             let width = img.width;
             let height = img.height;
+            const max = 400;
 
             if (width > height) {
-              if (width > maxDimension) {
-                height = Math.round((height * maxDimension) / width);
-                width = maxDimension;
+              if (width > max) {
+                height *= max / width;
+                width = max;
               }
             } else {
-              if (height > maxDimension) {
-                width = Math.round((width * maxDimension) / height);
-                height = maxDimension;
+              if (height > max) {
+                width *= max / height;
+                height = max;
               }
             }
 
             canvas.width = width;
             canvas.height = height;
-
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
-            
-            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.5);
-            resolve(compressedBase64);
+            resolve(canvas.toDataURL('image/jpeg', 0.6));
           };
-          img.onerror = (err) => reject(err);
+          img.onerror = () => resolve(e.target.result);
         };
-        reader.onerror = (err) => reject(err);
       });
     }
 
@@ -157,7 +153,7 @@
       submitBtn.disabled = true;
 
       try {
-        const base64Image = await compressAndConvertImage(file);
+        const base64Image = await processImage(file);
 
         const newProduct = {
           title: document.getElementById('pTitle').value,
@@ -172,11 +168,9 @@
         alert('تمت إضافة المنتج بنجاح! 🎉');
         productForm.reset();
         imgPreview.style.display = 'none';
-        submitBtn.innerText = "إضافة المنتج للمتجر";
-        submitBtn.disabled = false;
-
       } catch (err) {
-        alert('حدث خطأ أثناء الحفظ: ' + err.message);
+        alert('حدث خطأ: ' + err.message);
+      } finally {
         submitBtn.innerText = "إضافة المنتج للمتجر";
         submitBtn.disabled = false;
       }
