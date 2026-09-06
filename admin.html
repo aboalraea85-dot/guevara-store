@@ -15,6 +15,7 @@
     .form-group { margin-bottom: 15px; }
     label { display: block; margin-bottom: 5px; color: #94a3b8; font-size: 0.9em; }
     input, textarea, select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 1em; outline: none; }
+    input[type="file"] { padding: 8px; background: #1e293b; cursor: pointer; }
     input:focus, textarea:focus, select:focus { border-color: #38bdf8; }
     .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; background: #0284c7; color: white; font-weight: bold; font-size: 1em; cursor: pointer; transition: 0.3s; margin-top: 10px; }
     .btn:hover { background: #0369a1; }
@@ -27,6 +28,7 @@
     .category-badge { background: #0284c7; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 0.75em; display: inline-block; margin-top: 3px; }
     .btn-delete { background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
     .btn-delete:hover { background: #dc2626; }
+    #imgPreview { max-width: 100px; max-height: 100px; margin-top: 10px; border-radius: 8px; display: none; }
   </style>
 </head>
 <body>
@@ -52,14 +54,15 @@
         <input type="number" id="pPrice" required placeholder="مثال: 250">
       </div>
       <div class="form-group">
-        <label>رابط الصورة</label>
-        <input type="url" id="pImg" required placeholder="https://example.com/image.jpg">
+        <label>صورة المنتج (اختر من معرض الصور)</label>
+        <input type="file" id="pImgFile" accept="image/*" required>
+        <img id="imgPreview" alt="معاينة الصورة">
       </div>
       <div class="form-group">
         <label>وصف المنتج</label>
         <textarea id="pDesc" rows="3" placeholder="اكتب تفاصيل المنتج هنا..."></textarea>
       </div>
-      <button type="submit" class="btn">إضافة المنتج للمتجر</button>
+      <button type="submit" class="btn" id="submitBtn">إضافة المنتج للمتجر</button>
     </form>
 
     <div class="divider"></div>
@@ -86,21 +89,57 @@
 
     const productForm = document.getElementById('productForm');
     const productList = document.getElementById('productList');
+    const pImgFileInput = document.getElementById('pImgFile');
+    const imgPreview = document.getElementById('imgPreview');
+    const submitBtn = document.getElementById('submitBtn');
+
+    let base64Image = "";
+
+    // معاينة الصورة المباشرة عند اختيارها من المعرض
+    pImgFileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+          base64Image = event.target.result;
+          imgPreview.src = base64Image;
+          imgPreview.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+      }
+    });
 
     // إضافة منتج جديد
     productForm.addEventListener('submit', (e) => {
       e.preventDefault();
+
+      if (!base64Image) {
+        alert('يرجى اختيار صورة للمنتج من المعرض أولاً');
+        return;
+      }
+
+      submitBtn.innerText = "جاري الإضافة...";
+      submitBtn.disabled = true;
+
       const newProduct = {
         title: document.getElementById('pTitle').value,
         category: document.getElementById('pCategory').value,
         price: document.getElementById('pPrice').value,
-        image: document.getElementById('pImg').value,
+        image: base64Image,
         description: document.getElementById('pDesc').value
       };
 
       push(ref(db, 'products'), newProduct).then(() => {
         alert('تمت إضافة المنتج بنجاح! 🎉');
         productForm.reset();
+        imgPreview.style.display = 'none';
+        base64Image = "";
+        submitBtn.innerText = "إضافة المنتج للمتجر";
+        submitBtn.disabled = false;
+      }).catch(err => {
+        alert('حدث خطأ أثناء الإضافة: ' + err.message);
+        submitBtn.innerText = "إضافة المنتج للمتجر";
+        submitBtn.disabled = false;
       });
     });
 
@@ -167,7 +206,7 @@
 
         // 2. توجيه المالك إلى الواتساب مع رسالة توضيحية
         const whatsappNumber = "201501008175";
-        const message = encodeURIComponent("مرحباً، تم تحميل ملف طلبات المتجر الجديد بنجاح 📊. يرجى إرفاق الملف المحمل من الجهاز إرساله هنا.");
+        const message = encodeURIComponent("مرحباً، تم تحميل ملف طلبات المتجر الجديد بنجاح 📊. يرجى إرفاق الملف المحمل من الجهاز لإرساله هنا.");
         
         setTimeout(() => {
           window.open(`https://wa.me/${whatsappNumber}?text=${message}`, '_blank');
