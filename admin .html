@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لوحة التحكم | Guevara Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; }
+    body { background: #0f172a; color: #f8fafc; padding: 20px; display: flex; justify-content: center; }
+    .container { max-width: 600px; width: 100%; background: #1e293b; padding: 25px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+    h2 { margin-bottom: 20px; text-align: center; color: #38bdf8; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; margin-bottom: 5px; color: #94a3b8; font-size: 0.9em; }
+    input, textarea, select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 1em; outline: none; }
+    input:focus, textarea:focus, select:focus { border-color: #38bdf8; }
+    .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; background: #0284c7; color: white; font-weight: bold; font-size: 1em; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+    .btn:hover { background: #0369a1; }
+    .btn-excel { background: #10b981; }
+    .btn-excel:hover { background: #059669; }
+    .divider { height: 1px; background: #334155; margin: 25px 0; }
+    .product-item { display: flex; align-items: center; justify-content: space-between; background: #0f172a; padding: 10px 15px; border-radius: 8px; margin-bottom: 10px; }
+    .product-info { display: flex; align-items: center; gap: 12px; }
+    .product-info img { width: 45px; height: 45px; border-radius: 6px; object-fit: cover; }
+    .category-badge { background: #0284c7; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 0.75em; display: inline-block; margin-top: 3px; }
+    .btn-delete { background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+    .btn-delete:hover { background: #dc2626; }
+    #imgPreview { max-width: 100px; max-height: 100px; margin-top: 10px; border-radius: 8px; display: none; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h2>إدارة منتجات المتجر</h2>
+
+    <form id="productForm">
+      <div class="form-group">
+        <label>اسم المنتج</label>
+        <input type="text" id="pTitle" required placeholder="مثال: كريم تفتيح">
+      </div>
+      <div class="form-group">
+        <label>القسم</label>
+        <select id="pCategory" required>
+          <option value="منتجات حريمي">منتجات حريمي</option>
+          <option value="منتجات رجالي">منتجات رجالي</option>
+          <option value="أخرى">أخرى</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>السعر (ج.م)</label>
+        <input type="number" id="pPrice" required placeholder="مثال: 250">
+      </div>
+      <div class="form-group">
+        <label>رابط صورة المنتج (أو اختر صورة جديدة)</label>
+        <input type="text" id="pImgUrl" placeholder="أدخل رابط الصورة مباشر أو ارفعها بالأسفل">
+        <input type="file" id="pImgFile" accept="image/*" style="margin-top: 8px;">
+        <img id="imgPreview" alt="معاينة الصورة">
+      </div>
+      <div class="form-group">
+        <label>وصف المنتج</label>
+        <textarea id="pDesc" rows="3" placeholder="اكتب تفاصيل المنتج هنا..."></textarea>
+      </div>
+      <button type="submit" class="btn" id="submitBtn">إضافة المنتج للمتجر</button>
+    </form>
+
+    <div class="divider"></div>
+
+    <h2>النسخ الاحتياطي وإدارة الطلبات</h2>
+    <button class="btn btn-excel" onclick="exportToExcelAndWhatsApp()">تحميل الطلبات وإرسالها عبر الواتساب 📊📲</button>
+
+    <div class="divider"></div>
+
+    <h2>المنتجات الحالية</h2>
+    <div id="productList"></div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getDatabase, ref, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+    const firebaseConfig = {
+      databaseURL: "https://guevara-store-default-rtdb.firebaseio.com"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const productForm = document.getElementById('productForm');
+    const productList = document.getElementById('productList');
+    const pImgFileInput = document.getElementById('pImgFile');
+    const pImgUrlInput = document.getElementById('pImgUrl');
+    const imgPreview = document.getElementById('imgPreview');
+    const submitBtn = document.getElementById('submitBtn');
+
+    let imageStringData = "";
+
+    pImgFileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.src = event.target.result;
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 120;
+            canvas.height = 120;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, 120, 120);
+            imageStringData = canvas.toDataURL('image/jpeg', 0.2);
+            imgPreview.src = imageStringData;
+            imgPreview.style.display = 'block';
+          };
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    productForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      let finalImg = pImgUrlInput.value.trim() || imageStringData;
+
+      if (!finalImg) {
+        alert('يرجى اختيار صورة أو وضع رابط صورة للمنتج!');
+        return;
+      }
+
+      submitBtn.innerText = "جاري الحفظ...";
+      submitBtn.disabled = true;
+
+      const newProduct = {
+        title: document.getElementById('pTitle').value,
+        category: document.getElementById('pCategory').value,
+        price: document.getElementById('pPrice').value,
+        image: finalImg,
+        description: document.getElementById('pDesc').value
+      };
+
+      try {
+        await push(ref(db, 'products'), newProduct);
+        alert('تمت إضافة المنتج بنجاح! 🎉');
+        productForm.reset();
+        imgPreview.style.display = 'none';
+        imageStringData = "";
+      } catch (err) {
+        alert('خطأ في قاعدة البيانات: ' + err.message);
+      } finally {
+        submitBtn.innerText = "إضافة المنتج للمتجر";
+        submitBtn.disabled = false;
+      }
+    });
+
+    onValue(ref(db, 'products'), (snapshot) => {
+      productList.innerHTML = '';
+      const data = snapshot.val();
+      if(data) {
+        Object.keys(data).forEach(key => {
+          const item = data[key];
+          const div = document.createElement('div');
+          div.className = 'product-item';
+          div.innerHTML = `
+            <div class="product-info">
+              <img src="${item.image}" alt="${item.title}">
+              <div>
+                <strong>${item.title}</strong> - ${item.price} ج.م
+                <br>
+                <span class="category-badge">${item.category || 'عام'}</span>
+              </div>
+            </div>
+            <button class="btn-delete" onclick="deleteProduct('${key}')">حذف</button>
+          `;
+          productList.appendChild(div);
+        });
+      } else {
+        productList.innerHTML = '<p style="text-align:center; color:#64748b;">لا توجد منتجات حالياً.</p>';
+      }
+    });
+
+    window.deleteProduct = function(id) {
+      if(confirm('هل أنت تأكد من حذف هذا المنتج؟')) {
+        remove(ref(db, 'products/' + id));
+      }
+    };
+
+    window.exportToExcelAndWhatsApp = function() {
+      onValue(ref(db, 'orders'), (snapshot) => {
+        const orders = snapshot.val();
+        if (!orders) {
+          alert('لا توجد طلبات لتصديرها!');
+          return;
+        }
+
+        const dataArray = [];
+        Object.keys(orders).forEach(key => {
+          const order = orders[key];
+          dataArray.push({
+            "اسم العميل": order.customerName,
+            "رقم الهاتف": order.phone,
+            "العنوان": order.address,
+            "المنتج": order.productTitle,
+            "السعر": order.productPrice + " ج.م",
+            "التاريخ": order.date || "غير محدد"
+          });
+        });
+
+        const worksheet = XLSX.utils.json_to_sheet(dataArray);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "الطلبات");
+        XLSX.writeFile(workbook, "طلبات_المتجر.xlsx");
+
+        const whatsappNumber = "201501008175";
+        const message = encodeURIComponent("مرحباً، تم تحميل ملف طلبات المتجر الجديد بنجاح 📊.");
+
+        setTimeout(() => {
+          window.open(`https://wa.me/${whatsappNumber}?text=${message}`, '_blank');
+        }, 1000);
+
+      }, { onlyOnce: true });
+    };
+  </script>
+</body>
+</html>
