@@ -53,7 +53,7 @@
         <input type="number" id="pPrice" required placeholder="مثال: 250">
       </div>
       <div class="form-group">
-        <label>صورة المنتج (اختر من معرض الصور)</label>
+        <label>صورة المنتج</label>
         <input type="file" id="pImgFile" accept="image/*" required>
         <img id="imgPreview" alt="معاينة الصورة">
       </div>
@@ -92,88 +92,63 @@
     const imgPreview = document.getElementById('imgPreview');
     const submitBtn = document.getElementById('submitBtn');
 
+    let base64String = "";
+
     pImgFileInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
         const reader = new FileReader();
         reader.onload = (event) => {
-          imgPreview.src = event.target.result;
-          imgPreview.style.display = 'block';
+          const img = new Image();
+          img.src = event.target.result;
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 250;
+            canvas.height = 250;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, 250, 250);
+            base64String = canvas.toDataURL('image/jpeg', 0.5);
+            imgPreview.src = base64String;
+            imgPreview.style.display = 'block';
+          };
         };
         reader.readAsDataURL(file);
       }
     });
 
-    function processImage(file) {
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = (e) => {
-          const img = new Image();
-          img.src = e.target.result;
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            let width = img.width;
-            let height = img.height;
-            const max = 400;
-
-            if (width > height) {
-              if (width > max) {
-                height *= max / width;
-                width = max;
-              }
-            } else {
-              if (height > max) {
-                width *= max / height;
-                height = max;
-              }
-            }
-
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, width, height);
-            resolve(canvas.toDataURL('image/jpeg', 0.6));
-          };
-          img.onerror = () => resolve(e.target.result);
-        };
-      });
-    }
-
-    productForm.addEventListener('submit', async (e) => {
+    productForm.addEventListener('submit', (e) => {
       e.preventDefault();
 
-      const file = pImgFileInput.files[0];
-      if (!file) {
-        alert('يرجى اختيار صورة للمنتج أولاً');
+      if (!base64String) {
+        alert('يرجى اختيار صورة للمنتج والانتظار ثانية حتى تظهر المعاينة');
         return;
       }
 
       submitBtn.innerText = "جاري الحفظ...";
       submitBtn.disabled = true;
 
-      try {
-        const base64Image = await processImage(file);
+      const newProduct = {
+        title: document.getElementById('pTitle').value,
+        category: document.getElementById('pCategory').value,
+        price: document.getElementById('pPrice').value,
+        image: base64String,
+        description: document.getElementById('pDesc').value
+      };
 
-        const newProduct = {
-          title: document.getElementById('pTitle').value,
-          category: document.getElementById('pCategory').value,
-          price: document.getElementById('pPrice').value,
-          image: base64Image,
-          description: document.getElementById('pDesc').value
-        };
-
-        await push(ref(db, 'products'), newProduct);
-
-        alert('تمت إضافة المنتج بنجاح! 🎉');
-        productForm.reset();
-        imgPreview.style.display = 'none';
-      } catch (err) {
-        alert('حدث خطأ: ' + err.message);
-      } finally {
-        submitBtn.innerText = "إضافة المنتج للمتجر";
-        submitBtn.disabled = false;
-      }
+      push(ref(db, 'products'), newProduct)
+        .then(() => {
+          alert('تمت إضافة المنتج بنجاح! 🎉');
+          productForm.reset();
+          imgPreview.style.display = 'none';
+          base64String = "";
+        })
+        .catch((err) => {
+          alert('خطأ في الحفظ: ' + err.message);
+        })
+        .finally(() => {
+          submitBtn.innerText = "إضافة المنتج للمتجر";
+          submitBtn.disabled = false;
+        });
     });
 
     onValue(ref(db, 'products'), (snapshot) => {
@@ -235,7 +210,7 @@
         XLSX.writeFile(workbook, "طلبات_المتجر.xlsx");
 
         const whatsappNumber = "201501008175";
-        const message = encodeURIComponent("مرحباً، تم تحميل ملف طلبات المتجر الجديد بنجاح 📊. يرجى إرفاق الملف المحمل من الجهاز لإرساله هنا.");
+        const message = encodeURIComponent("مرحباً، تم تحميل ملف طلبات المتجر الجديد بنجاح 📊.");
 
         setTimeout(() => {
           window.open(`https://wa.me/${whatsappNumber}?text=${message}`, '_blank');
@@ -245,4 +220,5 @@
     };
   </script>
 </body>
-</html>
+  </html>
+  
