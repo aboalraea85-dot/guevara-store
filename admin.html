@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>لوحة التحكم | Guevara Admin</title>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
-  <!-- مكتبة إنشاء ملفات Excel -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; }
@@ -95,17 +94,52 @@
 
     let base64Image = "";
 
-    // معاينة الصورة المباشرة عند اختيارها من المعرض
+    // دالة ضغط الصور وتقليل أبعادها لجعل الرفع فورياً
+    function compressImage(file, callback) {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxDim = 500; // الأبعاد القصوى للصورة
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxDim) {
+              height *= maxDim / width;
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width *= maxDim / height;
+              height = maxDim;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('canvas');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // ضغط الصورة بجودة 0.6 لجعل الحجم صغيراً جداً
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
+          callback(compressedBase64);
+        };
+      };
+    }
+
+    // معايرة وضغط الصورة المباشرة عند اختيارها
     pImgFileInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
-        const reader = new FileReader();
-        reader.onload = function(event) {
-          base64Image = event.target.result;
+        compressImage(file, (compressedData) => {
+          base64Image = compressedData;
           imgPreview.src = base64Image;
           imgPreview.style.display = 'block';
-        };
-        reader.readAsDataURL(file);
+        });
       }
     });
 
@@ -198,13 +232,11 @@
           });
         });
 
-        // 1. تنزيل ملف Excel على الجهاز
         const worksheet = XLSX.utils.json_to_sheet(dataArray);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "الطلبات");
         XLSX.writeFile(workbook, "طلبات_المتجر.xlsx");
 
-        // 2. توجيه المالك إلى الواتساب مع رسالة توضيحية
         const whatsappNumber = "201501008175";
         const message = encodeURIComponent("مرحباً، تم تحميل ملف طلبات المتجر الجديد بنجاح 📊. يرجى إرفاق الملف المحمل من الجهاز لإرساله هنا.");
         
