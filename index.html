@@ -25,13 +25,14 @@
     .card-title { font-size: 1.1em; font-weight: bold; margin-bottom: 5px; }
     .card-desc { color: #64748b; font-size: 0.85em; margin-bottom: 10px; height: 38px; overflow: hidden; }
     .card-price { color: #0284c7; font-size: 1.2em; font-weight: bold; margin-bottom: 10px; }
-    .btn-buy { width: 100%; padding: 10px; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+    .btn-buy { width: 100%; padding: 10px; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
     .btn-buy:hover { background: #059669; }
 
     /* نافذة الطلب */
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 100; }
     .modal-content { background: #fff; padding: 25px; border-radius: 12px; max-width: 400px; width: 90%; }
-    .modal-content input { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #cbd5e1; border-radius: 6px; }
+    .modal-content input { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; }
+    .modal-content input:focus { border-color: #0284c7; }
   </style>
 </head>
 <body>
@@ -58,7 +59,7 @@
       <input type="text" id="custName" placeholder="الاسم بالكامل" required>
       <input type="tel" id="custPhone" placeholder="رقم الهاتف" required>
       <input type="text" id="custAddress" placeholder="العنوان التفصيلي" required>
-      <button class="btn-buy" style="margin-top:10px;" onclick="submitOrder()">تأكيد الطلب</button>
+      <button class="btn-buy" id="submitOrderBtn" style="margin-top:10px;" onclick="submitOrder()">تأكيد الطلب</button>
       <button style="width:100%; padding:8px; margin-top:5px; background:none; border:none; color:#ef4444; cursor:pointer;" onclick="closeModal()">إلغاء</button>
     </div>
   </div>
@@ -76,43 +77,58 @@
 
     let allProducts = {};
     let selectedProduct = null;
+    let currentCategory = 'الكل';
 
     // جلب المنتجات
     onValue(ref(db, 'products'), (snapshot) => {
       allProducts = snapshot.val() || {};
-      renderProducts('الكل');
+      renderProducts(currentCategory);
     });
 
     window.renderProducts = function(category) {
+      currentCategory = category;
       const grid = document.getElementById('grid');
       grid.innerHTML = '';
 
-      Object.keys(allProducts).forEach(key => {
+      const keys = Object.keys(allProducts);
+      let count = 0;
+
+      keys.forEach(key => {
         const item = allProducts[key];
         if (category === 'الكل' || item.category === category) {
+          count++;
           const card = document.createElement('div');
           card.className = 'card';
+          
+          // حماية البيانات من قيم undefined
+          const safeTitle = (item.title || '').replace(/'/g, "\\'");
+          const safePrice = item.price || 0;
+
           card.innerHTML = `
-            <img src="${item.image}" alt="${item.title}">
+            <img src="${item.image || 'https://via.placeholder.com/200'}" alt="${safeTitle}">
             <div class="card-body">
               <div>
-                <div class="card-title">${item.title}</div>
+                <div class="card-title">${item.title || ''}</div>
                 <div class="card-desc">${item.description || ''}</div>
               </div>
               <div>
-                <div class="card-price">${item.price} ج.م</div>
-                <button class="btn-buy" onclick="openOrderModal('${item.title}', '${item.price}')">شراء الآن</button>
+                <div class="card-price">${safePrice} ج.م</div>
+                <button class="btn-buy" onclick="openOrderModal('${safeTitle}', '${safePrice}')">شراء الآن</button>
               </div>
             </div>
           `;
           grid.appendChild(card);
         }
       });
+
+      if (count === 0) {
+        grid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; color:#94a3b8; padding:30px;">لا توجد منتجات متوفرة في هذا القسم حالياً.</p>';
+      }
     };
 
     window.filterProducts = function(cat, btn) {
       document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
+      if(btn) btn.classList.add('active');
       renderProducts(cat);
     };
 
@@ -125,17 +141,24 @@
 
     window.closeModal = function() {
       document.getElementById('orderModal').style.display = 'none';
+      document.getElementById('custName').value = '';
+      document.getElementById('custPhone').value = '';
+      document.getElementById('custAddress').value = '';
     };
 
     window.submitOrder = function() {
-      const name = document.getElementById('custName').value;
-      const phone = document.getElementById('custPhone').value;
-      const address = document.getElementById('custAddress').value;
+      const name = document.getElementById('custName').value.trim();
+      const phone = document.getElementById('custPhone').value.trim();
+      const address = document.getElementById('custAddress').value.trim();
+      const btn = document.getElementById('submitOrderBtn');
 
       if(!name || !phone || !address) {
         alert('برجاء ملء جميع البيانات');
         return;
       }
+
+      btn.innerText = "جاري إرسال الطلب...";
+      btn.disabled = true;
 
       push(ref(db, 'orders'), {
         customerName: name,
@@ -145,8 +168,14 @@
         productPrice: selectedProduct.price,
         date: new Date().toLocaleString('ar-EG')
       }).then(() => {
-        alert('تم ارسال طلبك بنجاح! وسنتواصل معك قريباً 🎉');
+        alert('تم إرسال طلبك بنجاح! وسنتواصل معك قريباً 🎉');
+        btn.innerText = "تأكيد الطلب";
+        btn.disabled = false;
         closeModal();
+      }).catch((err) => {
+        alert('حدث خطأ أثناء إرسال الطلب: ' + err.message);
+        btn.innerText = "تأكيد الطلب";
+        btn.disabled = false;
       });
     };
   </script>
